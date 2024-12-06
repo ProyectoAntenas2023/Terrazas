@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <title>Mapa</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+        }
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        .leaflet-control-layers {
+            cursor: pointer; 
+        }
+        .leaflet-control-layers-list {
+            display: none; 
+        }
+        .leaflet-control-layers.active .leaflet-control-layers-list {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-ajax"></script>
+    <script>
+        var map = L.map('map').setView([-33.4314, -70.6092], 14);
+        var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        var style = {
+            DIDEL: { color: "#800080" },
+            DIDEL_RENTAS: { color: "#A00080" },
+            DIDEL_SECPLA: { color: "#A08B00" },
+            DIDEL_SECPLA_RENTAS: { color: "#A06B00" },
+            DIDEL_SIN_RENTAS: { color: "#D7A0D7" },
+            DIDEL_SIN_SECPLA: { color: "#A78FA0" },
+            RENTAS: { color: "#FF0000" },
+            RENTAS_SIN_DIDEL: { color: "#C00000" },
+            RENTAS_Y_SECPLA_SIN_DIDEL: { color: "#E7A400" },
+            SECPLA: { color: "#FFFF00" },
+            SECPLA_SIN_DIDEL: { color: "#D3D000" }
+        };
+
+        var coverageLayers = {};
+        function onEachFeature(feature, layer) {
+            if (feature.properties) {
+                var popupContent = "<div style='max-height: 200px; overflow-y: auto; width: 200px;'>" +
+                                   "<b>Propiedades:</b><br>";
+                for (var prop in feature.properties) {
+                    if (prop === "Frontis" || prop === "Lateral_A" || prop === "Lateral_B") {
+                        popupContent += "<b>" + prop + ":</b><br>" +
+                                        "<a href='" + feature.properties[prop] + "' target='_blank'>" +
+                                        "<img src='" + feature.properties[prop] + "' alt='" + prop + "' style='width:100%; max-height:150px; object-fit:cover;'>" +
+                                        "</a><br>";
+                    } else {
+                        popupContent += "<b>" + prop + ":</b> " + feature.properties[prop] + "<br>";
+                    }
+                }
+                popupContent += "</div>";
+
+                layer.bindPopup(popupContent);
+            }
+        }
+
+        function addCoverage(coverage) {
+            var url = `https://raw.githubusercontent.com/ProyectoAntenas2023/TERRAZAS_PROVIDENCIA/a38818ac2693dffacd6ff789b709ef285e52a191/GeoJSON/${coverage}.json`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    var layerGroup = L.layerGroup();
+                    coverageLayers[coverage] = layerGroup;
+
+                    data.features.forEach(feature => {
+                        var coords = feature.geometry.coordinates; 
+                        var color = style[coverage].color;
+                        var circle = L.circle([coords[1], coords[0]], {
+                            color: color,
+                            radius: 50 
+                        });
+                        circle.addTo(layerGroup);
+                        onEachFeature(feature, circle);
+                    });
+                    if (coverage === 'DIDEL') {
+                        layerGroup.addTo(map); 
+                    }
+                    layerControl.addOverlay(layerGroup, coverage); 
+                });
+        }
+
+        var layerControl = L.control.layers(null, {}, { collapsed: true }).addTo(map);
+        var coverages = [
+            'DIDEL',
+            'DIDEL_RENTAS',
+            'DIDEL_SECPLA',
+            'DIDEL_SECPLA_RENTAS',
+            'DIDEL_SIN_RENTAS',
+            'DIDEL_SIN_SECPLA',
+            'RENTAS',
+            'RENTAS_SIN_DIDEL',
+            'RENTAS_Y_SECPLA_SIN_DIDEL',
+            'SECPLA',
+            'SECPLA_SIN_DIDEL'
+        ];
+
+        coverages.forEach(function (coverage) {
+            addCoverage(coverage);
+        });
+
+        var controlLayers = document.querySelector('.leaflet-control-layers');
+        if (controlLayers) {
+            controlLayers.addEventListener('mouseenter', function() {
+                this.classList.add('active');
+            });
+
+            controlLayers.addEventListener('mouseleave', function() {
+                this.classList.remove('active'); 
+            });
+        }
+    </script>
+</body>
+</html>
